@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo to PDF Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e'
+                        }
+                    }
+                }
+            },
+            plugins: []
+        }
+    </script>
+    <style>
+        .btn-primary {
+            @apply bg-primary-500 text-white hover:bg-primary-600 focus:ring-2 focus:ring-primary-300 transition duration-300 ease-in-out;
+        }
+        
+        .input-field {
+            @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white shadow-lg rounded-lg p-6">
+        <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Photo to PDF Converter</h1>
+        
+        <label for="imageInput" class="w-full btn-primary font-bold py-2 px-4 rounded mb-4 cursor-pointer">
+            Select Images
+        </label>
+        <input 
+            type="file" 
+            id="imageInput" 
+            accept="image/*" 
+            multiple 
+            class="hidden"
+        >
+        
+        <div id="selectedImages" class="grid grid-cols-3 gap-2 mb-4"></div>
+        
+        <button 
+            id="convertToPDF" 
+            class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded opacity-50 cursor-not-allowed" 
+            disabled
+        >
+            Convert to PDF
+        </button>
+    </div>
+
+    <footer class="mt-4 text-center text-gray-500 text-sm">
+        © 2024 Dev Pvt Ltd. All Rights Reserved.
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        const { jsPDF } = window.jspdf;
+        const imageInput = document.getElementById('imageInput');
+        const selectedImagesContainer = document.getElementById('selectedImages');
+        const convertButton = document.getElementById('convertToPDF');
+        let selectedFiles = [];
+
+        imageInput.addEventListener('change', (e) => {
+            selectedFiles = Array.from(e.target.files);
+            updateSelectedImages();
+        });
+
+        function updateSelectedImages() {
+            selectedImagesContainer.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.classList.add('w-full', 'h-20', 'object-cover', 'rounded');
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.innerHTML = '✕';
+                    removeBtn.classList.add('absolute', 'top-0', 'right-0', 'bg-red-500', 'text-white', 'rounded-full', 'w-5', 'h-5', 'text-xs', 'flex', 'items-center', 'justify-center');
+                    removeBtn.addEventListener('click', () => {
+                        selectedFiles.splice(index, 1);
+                        updateSelectedImages();
+                    });
+
+                    const container = document.createElement('div');
+                    container.classList.add('relative');
+                    container.appendChild(img);
+                    container.appendChild(removeBtn);
+
+                    selectedImagesContainer.appendChild(container);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            convertButton.disabled = selectedFiles.length === 0;
+            convertButton.classList.toggle('opacity-50', selectedFiles.length === 0);
+            convertButton.classList.toggle('cursor-not-allowed', selectedFiles.length === 0);
+            convertButton.classList.toggle('hover:bg-green-600', selectedFiles.length > 0);
+        }
+
+        convertButton.addEventListener('click', async () => {
+            const pdf = new jsPDF();
+            
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                const reader = new FileReader();
+                
+                reader.onload = async (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    
+                    await new Promise(resolve => {
+                        img.onload = () => {
+                            const pageWidth = pdf.internal.pageSize.getWidth();
+                            const pageHeight = pdf.internal.pageSize.getHeight();
+                            
+                            // Calculate image dimensions to fit the page
+                            let imgWidth = img.width;
+                            let imgHeight = img.height;
+                            const aspectRatio = imgWidth / imgHeight;
+                            
+                            if (imgWidth > pageWidth) {
+                                imgWidth = pageWidth;
+                                imgHeight = imgWidth / aspectRatio;
+                            }
+                            
+                            if (imgHeight > pageHeight) {
+                                imgHeight = pageHeight;
+                                imgWidth = imgHeight * aspectRatio;
+                            }
+                            
+                            // Center the image on the page
+                            const xOffset = (pageWidth - imgWidth) / 2;
+                            const yOffset = (pageHeight - imgHeight) / 2;
+                            
+                            if (i > 0) {
+                                pdf.addPage();
+                            }
+                            
+                            pdf.addImage(img, 'JPEG', xOffset, yOffset, imgWidth, imgHeight);
+                            
+                            if (i === selectedFiles.length - 1) {
+                                pdf.save('converted-images.pdf');
+                            }
+                            
+                            resolve();
+                        };
+                    });
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+</body>
+</html>
